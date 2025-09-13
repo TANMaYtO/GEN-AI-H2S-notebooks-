@@ -1,2 +1,7 @@
 .env
+<<<<<<< HEAD
 venv/
+=======
+venv/
+GOOGLE_VISION_API.json
+>>>>>>> f76dcb1c84655a30a61595dcf39bf2098e3425c6
