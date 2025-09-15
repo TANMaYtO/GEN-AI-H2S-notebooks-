@@ -3,6 +3,13 @@ import faiss
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.cross_encoder import CrossEncoder
 from transformers import pipeline
+from PIL import Image, ImageChops, ImageEnhance
+import torch
+from google.cloud import vision
+import os
+import io
+
+DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 class retriver:
     def __init__(self):
@@ -63,4 +70,59 @@ class classifier:
         """
         result = self.summarizer(prompt, max_new_tokens=100)[0]['generated_text']
         return self.result_parser(result)
-
+    
+class img_manipulation:
+    def __init__(self):
+        self.GEN_AI_IMAGE = pipeline("image-classification", model="umm-maybe/AI-image-detector", device = DEVICE)
+    def Gen_AI_IMG(self,img_pth):
+        try:
+            img = Image.open(img_pth).convert('RGB')
+            result = self.GEN_AI_IMAGE(img)
+            manipulation_proba = 0
+            for i in result:
+                if i['label'] == 'artificial':
+                    manipulation_proba = i['score']
+                    break
+            manipulation_proba = manipulation_proba*100
+            print(f'chance of manipulation: {manipulation_proba:.2f}')
+            return manipulation_proba
+        except Exception as e:
+            print(f'an error occured:{e}')
+            return None
+    def generated_image(self,img_pth, quality= 90, scale= 15):
+        try:
+            orig_img = Image.open(img_pth).convert('RGB')
+            temp_path = 'temp_resaved.jpg'
+            orig_img.save(temp_path, 'JPEG', quality=quality)
+            resaved_img = Image.open(temp_path)
+            ela_image= ImageChops.difference(orig_img, resaved_img)
+            ela_data = np.array(ela_image)
+            mean_intensity = ela_data.mean()
+            scaled_score = min(100, (mean_intensity / 25.0) * 100)
+            extrema= ela_image.getextrema()
+            max_diff = max([ex[1] for ex in extrema])
+            if max_diff == 0:
+                max_diff = 1
+            enhancer = ImageEnhance.Brightness(ela_image)
+            ela_image = enhancer.enhance(scale / max_diff)
+            print(f"ELA image generated for {img_pth}")
+            ela_image.show()
+            return scaled_score, ela_image
+        except Exception as e:
+            print(f'an error occured: {e}')
+            return None
+    def run_image_forensics(self,image_path):
+        ai_generated_score = self.Gen_AI_IMG(image_path)
+        classic_edit_score, ela_image_obj = self.generated_image(image_path)
+        
+        results = {
+            "ai_generated_score_percent": f'{ai_generated_score:.2f}',
+            "classic_edit_score_percent": f'{classic_edit_score:.2f}',
+            "ela_image": ela_image_obj
+        }
+        print(f"AI-Generated Score: {results['ai_generated_score_percent']}%")
+        print(f"Classic Edit Score (ELA): {results['classic_edit_score_percent']}%")
+        
+        if results["ela_image"]:
+            print("ELA image has been generated and is available for display.")  
+        return results
