@@ -29,7 +29,7 @@ index_file = "evidence_index.faiss"
 if os.path.exists(index_file):
     faiss_index = faiss.read_index(index_file)
 else:
-    faiss_index = retriver.build_faiss_index(evidence_corpus)
+    faiss_index = retriver.build_faiss_idx(evidence_corpus)
 
 def run_text_pipeline(claim):
     retrived_docs= retriver.retrieve_evidence(claim=claim, index=faiss_index, evidence_corpus=evidence_corpus)

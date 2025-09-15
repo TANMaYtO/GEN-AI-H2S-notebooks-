@@ -17,8 +17,9 @@ ocr_analyzer = OCR()
 def run_img_pipeline(img_pth):
     manipulation_results= manipulation_analyzer.run_image_forensics(img_pth)
     in_image_report= ocr_analyzer.get_in_image_anal(img_pth)
-    run_text_pipeline(in_image_report['Extracted Text'])
-    rev_img_search_res= OCR.rev_img_search(img_pth)
+    if "Extracted Text" in in_image_report:
+        run_text_pipeline(in_image_report["Extracted Text"])
+    rev_img_search_res= ocr_analyzer.rev_img_search(img_pth)
     final_report= {
         'image manipulation result': manipulation_results,
         'in image report': in_image_report,
