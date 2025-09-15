@@ -11,9 +11,12 @@ import io
 from all_functions import img_manipulation, OCR
 from TEXT_PIPELINE import run_text_pipeline
 
+manipulation_analyzer = img_manipulation()
+ocr_analyzer = OCR()
+
 def run_img_pipeline(img_pth):
-    manipulation_results= img_manipulation.run_image_forensics(img_pth)
-    in_image_report= OCR.get_in_image_anal(img_pth)
+    manipulation_results= manipulation_analyzer.run_image_forensics(img_pth)
+    in_image_report= ocr_analyzer.get_in_image_anal(img_pth)
     run_text_pipeline(in_image_report['Extracted Text'])
     rev_img_search_res= OCR.rev_img_search(img_pth)
     final_report= {
