@@ -126,3 +126,62 @@ class img_manipulation:
         if results["ela_image"]:
             print("ELA image has been generated and is available for display.")  
         return results
+
+class OCR:
+    def __init__(self):
+        os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'GOOGLE_VISION_API.json'
+        self.client = vision.ImageAnnotatorClient()
+    def get_full_vision_anal(self,img_pth):
+        try:
+            with open(img_pth, 'rb') as image_file:
+                content = image_file.read()
+            image = vision.Image(content=content)
+            features = [
+                {'type_': vision.Feature.Type.DOCUMENT_TEXT_DETECTION},
+                {'type_': vision.Feature.Type.SAFE_SEARCH_DETECTION},
+                {'type_': vision.Feature.Type.LANDMARK_DETECTION},
+                {'type_': vision.Feature.Type.LOGO_DETECTION},
+                {'type_': vision.Feature.Type.WEB_DETECTION}
+            ]
+            response = self.client.annotate_image({'image': image, 'features': features})
+            return response, None
+        except Exception as e:
+            return None, str(e)
+    def get_in_image_anal(self,img_pth):
+        response, error = self.get_full_vision_anal(img_pth)
+        if error:
+            return {'error': error}
+        report = {}
+        # OCR
+        if response.full_text_annotation:
+            report['Extracted Text'] = response.full_text_annotation.text
+        # SAFE SEARCH
+        if response.safe_search_annotation:
+            safe = response.safe_search_annotation
+            report['Safe Search'] = {
+                'adult': vision.Likelihood(safe.adult).name,
+                'violence': vision.Likelihood(safe.violence).name,
+                'spoof': vision.Likelihood(safe.spoof).name
+            }
+        # LANDMARKS AND LOGOS
+        entities = []
+        if response.landmark_annotations:
+            for landmark in response.landmark_annotations:
+                entities.append(f'Landmark: {landmark.description}')
+        if response.logo_annotations:
+            for logo in response.logo_annotations:
+                entities.append(f'Logo: {logo.description}')
+        if entities:
+            report['Identified Entities'] = entities
+        return report
+    def rev_img_search(self,img_pth):
+        response, error = self.get_full_vision_anal(img_pth)
+        if error:
+            return {'error': error}
+        report = {}
+        if response.web_detection and response.web_detection.pages_with_matching_images:
+            matches = []
+            for i in response.web_detection.pages_with_matching_images[:5]:
+                matches.append({'title': i.page_title, 'url': i.url})
+            report['Reverse Image Matches'] = matches
+        return report
