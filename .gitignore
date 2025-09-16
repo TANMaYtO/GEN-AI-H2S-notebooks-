@@ -2,3 +2,4 @@
 venv/
 GOOGLE_VISION_API.json
 evidence_index.faiss
+data.csv

@@ -8,6 +8,7 @@ import torch
 from google.cloud import vision
 import os
 import io
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -36,40 +37,57 @@ class reranker:
         scored_evidence= sorted(zip(score, evidence_list), reverse=True)
         return scored_evidence
 
-class classifier:
+class Classifier:
     def __init__(self):
-        self.summarizer = pipeline("text2text-generation", model="google/flan-t5-large")
-    def result_parser(self,raw_text):
+        self.model_name = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
+        self.label_names = ["entailment", "neutral", "contradiction"]
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(self.device)
         try:
-            lines = raw_text.strip().split('\n')
-            verdict = lines[0].replace('VERDICT:', '').strip()
-            explanation = lines[1].replace('EXPLANATION:', '').strip()
-            return {
-                'verdict': verdict,
-                'explanation': explanation
-            }
-        except IndexError:
-            return {
-                'verdict': 'UNCLEAR',
-                'explanation': raw_text.strip()
-            }
-    def get_final_verdict(self,claim, top_evidence):
-        prompt = f"""
-        You are a precise fact-checking AI. Your task is to analyze the trusted evidence and determine if it supports, refutes, or is insufficient to verify the user's claim.
+            self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name)
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            self.model.to(self.device)
+        except Exception as e:
+            raise RuntimeError(f"Could not fetch model from Hugging Face | {e}")
 
-        First, choose the single best label from the following options: [SUPPORTS, REFUTES, NOT ENOUGH INFO].
-        Second, provide a concise, one-sentence explanation for your choice based on the evidence.
+    def classify(self, claim, top_evidence):     
+        self.verdicts = []  #
+        evidences = [e[1] for e in top_evidence]
+        if not evidences:
+            raise ValueError("No evidence provided")
+        try:
+            inputs = self.tokenizer(
+                evidences,
+                [claim] * len(evidences),
+                return_tensors="pt",
+                padding=True,
+                truncation=True
+            )
+            with torch.no_grad():
+                inputs = {k:v.to(self.device) for k,v in inputs.items()}
+                outputs = self.model(**inputs)
+            probs = torch.softmax(outputs.logits, dim=-1)
+            for i, evidence in enumerate(evidences):
+                pred = torch.argmax(probs[i]).item()
+                self.verdicts.append({
+                    "evidence": evidence,
+                    "verdict": self.label_names[pred],
+                    "scores": {name: float(probs[i][j]) for j, name in enumerate(self.label_names)}
+                })
+            labels = [v["verdict"] for v in self.verdicts]
+            if "entailment" in labels:
+                result = "TRUE"
+            elif "contradiction" in labels:
+                result = "FALSE"
+            else:
+                result = "NEUTRAL"
 
-        Trusted Evidence: "{top_evidence}"
+            return result, self.verdicts
+        except Exception as e:
+            raise RuntimeError(f"Classification failed | {e}") 
+    def __call__(self,claim,evidences):
+        return self.classify(claim,evidences)
 
-        User's Claim: "{claim}"
-
-        Output your response in the following format:
-        VERDICT: [Your chosen label]
-        EXPLANATION: [Your one-sentence explanation]
-        """
-        result = self.summarizer(prompt, max_new_tokens=100)[0]['generated_text']
-        return self.result_parser(result)
     
 class img_manipulation:
     def __init__(self):
