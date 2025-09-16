@@ -9,11 +9,11 @@ import torch
 from google.cloud import vision
 import os
 import io
-from all_functions import reranker, retriver, classifier
+from all_functions import reranker, retriver, Classifier
 
 retriver = retriver()
 reranker = reranker()
-classifier = classifier()
+classifier = Classifier()
 
 try:
     df= pd.read_csv('data.csv')
@@ -37,7 +37,7 @@ def run_text_pipeline(claim):
     if not ranked_docs:
         return {"verdict": "NOT ENOUGH INFO", "explanation": "Could not find any relevant documents in the knowledge base."}
     top_evidence = ranked_docs[0][1]
-    final_report= classifier.get_final_verdict(claim=claim,top_evidence=top_evidence)
+    final_report= classifier.classify(claim=claim,top_evidence=top_evidence)
 
     return final_report
 
