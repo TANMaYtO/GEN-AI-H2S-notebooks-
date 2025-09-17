@@ -175,20 +175,18 @@ class img_manipulation:
         except Exception as e:
             print(f'an error occured: {e}')
             return None
-    def run_image_forensics(self,image_path):
+    def run_image_forensics(self, image_path):
         ai_generated_score = self.Gen_AI_IMG(image_path)
-        classic_edit_score, ela_image_obj = self.generated_image(image_path)
-        
+        classic_edit_score, ela_image_obj = self.generated_image(image_path)       
+        ela_image_path = None      
+        if ela_image_obj:
+            ela_image_path = "ela_result.png"
+            ela_image_obj.save(ela_image_path)
         results = {
-            "ai_generated_score_percent": f'{ai_generated_score:.2f}',
-            "classic_edit_score_percent": f'{classic_edit_score:.2f}',
-            "ela_image": ela_image_obj
-        }
-        print(f"AI-Generated Score: {results['ai_generated_score_percent']}%")
-        print(f"Classic Edit Score (ELA): {results['classic_edit_score_percent']}%")
-        
-        if results["ela_image"]:
-            print("ELA image has been generated and is available for display.")  
+            "ai_generated_score_percent": ai_generated_score,
+            "classic_edit_score_percent": classic_edit_score,
+            "ela_image_path": ela_image_path
+        }   
         return results
 
 class OCR:

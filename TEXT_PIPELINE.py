@@ -50,12 +50,11 @@ def run_text_pipeline(claim: str):
         "explanation": explanation,
         "top_evidence_snippet": truncated_evidence
     }
-    
     return clean_report
 
 # --- AND UPDATE YOUR FINAL PRINT ---
 if __name__ == "__main__":
-    user_claim = "The Eiffel Tower is made of cheese."
+    user_claim = "The Indian president is Narendra Modi."
     report = run_text_pipeline(user_claim)
     
     print("\n--- 🚀 FINAL TEXT ANALYSIS REPORT 🚀 ---")
