@@ -87,6 +87,46 @@ class Classifier:
             raise RuntimeError(f"Classification failed | {e}") 
     def __call__(self,claim,evidences):
         return self.classify(claim,evidences)
+    
+class summarizer:
+    def __init__(self):
+        self.model_name = "google/flan-t5-large"
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(self.device)
+        try:
+            self.model =  T5ForConditionalGeneration.from_pretrained(self.model_name, device_map="auto")
+            self.tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
+            self.model.to(self.device)
+        except Exception as e:
+            raise RuntimeError(f"Could not fetch model and tokenizer from HF | {e}")
+        
+    def forward(self,claim,top_evidence,verdict, max_input_len = 1024,max_output_len = 150):
+
+        evidences = [e[1] for e in top_evidence]
+
+        if not evidences:
+            raise ValueError("No evidence provided")
+        
+        input_text = f"""
+        Claim: {claim}
+        Verdict: {verdict}
+        Evidence:
+        {"\n\n---\n\n".join(top_evidence)}
+
+        Write a short explanation for why the verdict is {ver}.
+                    """
+
+    
+        inputs = tokenizer(input_text, return_tensors="pt", truncation=True, max_length=max_input_len).to('cuda')
+        
+        summary_ids = model.generate(inputs["input_ids"], max_length=max_output_len, num_beams=4, early_stopping=True)
+        
+        summary =  tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+
+        return verdict,summary
+    
+    def __call__(self,claim,top_evidence,verdict, max_input_len = 1024,max_output_len = 150):
+        return self.forward(self,claim,top_evidence,verdict, max_input_len = 1024,max_output_len = 150)
 
     
 class img_manipulation:
