@@ -9,6 +9,7 @@ from google.cloud import vision
 import os
 import io
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -113,15 +114,15 @@ class summarizer:
         Evidence:
         {"\n\n---\n\n".join(top_evidence)}
 
-        Write a short explanation for why the verdict is {ver}.
+        Write a short explanation for why the verdict is {verdict}.
                     """
 
     
-        inputs = tokenizer(input_text, return_tensors="pt", truncation=True, max_length=max_input_len).to('cuda')
+        inputs = self.tokenizer(input_text, return_tensors="pt", truncation=True, max_length=max_input_len).to('cuda')
         
-        summary_ids = model.generate(inputs["input_ids"], max_length=max_output_len, num_beams=4, early_stopping=True)
+        summary_ids = self.model.generate(inputs["input_ids"], max_length=max_output_len, num_beams=4, early_stopping=True)
         
-        summary =  tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+        summary =  self.tokenizer.decode(summary_ids[0], skip_special_tokens=True)
 
         return verdict,summary
     
