@@ -127,7 +127,7 @@ class summarizer:
         return verdict,summary
     
     def __call__(self,claim,top_evidence,verdict, max_input_len = 1024,max_output_len = 150):
-        return self.forward(self,claim,top_evidence,verdict, max_input_len = 1024,max_output_len = 150)
+        return self.forward(claim,top_evidence,verdict, max_input_len = 1024,max_output_len = 150)
 
     
 class img_manipulation:

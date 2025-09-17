@@ -9,11 +9,12 @@ import torch
 from google.cloud import vision
 import os
 import io
-from all_functions import reranker, retriver, Classifier
+from all_functions import reranker, retriver, Classifier, summarizer
 
 retriver = retriver()
 reranker = reranker()
 classifier = Classifier()
+summarizer= summarizer()
 
 try:
     df= pd.read_csv('data.csv')
@@ -32,13 +33,16 @@ else:
     faiss_index = retriver.build_faiss_idx(evidence_corpus)
 
 def run_text_pipeline(claim):
-    retrived_docs= retriver.retrieve_evidence(claim=claim, index=faiss_index, evidence_corpus=evidence_corpus)
-    ranked_docs= reranker.rerank_evidendce(claim=claim, evidence_list=retrived_docs)
-    if not ranked_docs:
-        return {"verdict": "NOT ENOUGH INFO", "explanation": "Could not find any relevant documents in the knowledge base."}
-    top_evidence = ranked_docs[0][1]
-    final_report= classifier.classify(claim=claim,top_evidence=top_evidence)
-
+    retrieved_docs= retriver.retrieve_evidence(claim=claim, index= faiss_index, evidence_corpus=evidence_corpus)
+    reranked_docs = reranker.rerank_evidendce(claim=claim, evidence_list=retrieved_docs)
+    if not reranked_docs:
+        return {"verdict": "NOT ENOUGH INFO", "explanation": "Could not find any relevant documents.", "evidence_report": []}
+    final_verdict, detailed_verdicts = classifier(claim, reranked_docs)
+    _, explanation = summarizer(claim, reranked_docs[:3], final_verdict)
+    final_report = {
+        "final_verdict": final_verdict,
+        "explanation": explanation,
+        "evidence_report": detailed_verdicts
+    }
     return final_report
-
 
