@@ -97,7 +97,7 @@ class summarizer:
         try:
             self.model =  T5ForConditionalGeneration.from_pretrained(self.model_name, device_map="auto")
             self.tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
-            self.model.to(self.device)
+            # self.model.to(self.device)
         except Exception as e:
             raise RuntimeError(f"Could not fetch model and tokenizer from HF | {e}")
         

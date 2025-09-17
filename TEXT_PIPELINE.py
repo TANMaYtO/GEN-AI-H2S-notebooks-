@@ -10,6 +10,7 @@ from google.cloud import vision
 import os
 import io
 from all_functions import reranker, retriver, Classifier, summarizer
+import json
 
 retriver = retriver()
 reranker = reranker()
@@ -46,3 +47,13 @@ def run_text_pipeline(claim):
     }
     return final_report
 
+
+
+if __name__ == "__main__":
+    user_claim = "The Eiffel Tower is made of cheese."
+    
+    report = run_text_pipeline(user_claim)
+    
+    print("\n--- 🚀 FINAL TEXT ANALYSIS REPORT 🚀 ---")
+    # Use json.dumps for a clean, readable print of the nested dictionary
+    print(json.dumps(report, indent=2))
