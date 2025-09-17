@@ -19,7 +19,7 @@ summarizer= summarizer()
 
 try:
     df= pd.read_csv('data.csv')
-    evidence_corpus = df['evidence'].dropna().tolist()
+    evidence_corpus = df['text'].dropna().tolist()
 except FileNotFoundError:
     print("your_dataset.csv not found! Please check the filename.")
     evidence_corpus = []
