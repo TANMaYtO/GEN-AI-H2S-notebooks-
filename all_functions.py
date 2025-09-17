@@ -50,9 +50,8 @@ class Classifier:
             self.model.to(self.device)
         except Exception as e:
             raise RuntimeError(f"Could not fetch model from Hugging Face | {e}")
-
-    def classify(self, claim, top_evidence):     
-        self.verdicts = []  #
+    def classify(self, claim, top_evidence):
+        self.verdicts = []
         evidences = [e[1] for e in top_evidence]
         if not evidences:
             raise ValueError("No evidence provided")
@@ -75,17 +74,23 @@ class Classifier:
                     "verdict": self.label_names[pred],
                     "scores": {name: float(probs[i][j]) for j, name in enumerate(self.label_names)}
                 })
-            labels = [v["verdict"] for v in self.verdicts]
-            if "entailment" in labels:
+            top_verdict_info = self.verdicts[0]
+            top_verdict_label = top_verdict_info["verdict"]
+            top_verdict_scores = top_verdict_info["scores"]
+            if top_verdict_label == "entailment" and top_verdict_scores["entailment"] > 0.8:
                 result = "TRUE"
-            elif "contradiction" in labels:
+            elif top_verdict_label == "contradiction" and top_verdict_scores["contradiction"] > 0.8:
                 result = "FALSE"
             else:
-                result = "NEUTRAL"
-
-            return result, self.verdicts
+                for v in self.verdicts[1:]:
+                    if v["verdict"] == "contradiction" and v["scores"]["contradiction"] > 0.9:
+                        result = "FALSE"
+                        break
+                else:
+                    result = "NEUTRAL"          
+            return result, self.verdicts           
         except Exception as e:
-            raise RuntimeError(f"Classification failed | {e}") 
+            raise RuntimeError(f"Classification failed | {e}")
     def __call__(self,claim,evidences):
         return self.classify(claim,evidences)
     
@@ -112,7 +117,7 @@ class summarizer:
         Claim: {claim}
         Verdict: {verdict}
         Evidence:
-        {"\n\n---\n\n".join(top_evidence)}
+        {"\n\n---\n\n".join(evidences)}
 
         Write a short explanation for why the verdict is {verdict}.
                     """

@@ -33,27 +33,33 @@ if os.path.exists(index_file):
 else:
     faiss_index = retriver.build_faiss_idx(evidence_corpus)
 
-def run_text_pipeline(claim):
-    retrieved_docs= retriver.retrieve_evidence(claim=claim, index= faiss_index, evidence_corpus=evidence_corpus)
-    reranked_docs = reranker.rerank_evidendce(claim=claim, evidence_list=retrieved_docs)
+def run_text_pipeline(claim: str):
+    retrieved_docs = retriver.retrieve_evidence(claim, faiss_index, evidence_corpus)
+    reranked_docs = reranker.rerank_evidendce(claim, retrieved_docs)
+    
     if not reranked_docs:
-        return {"verdict": "NOT ENOUGH INFO", "explanation": "Could not find any relevant documents.", "evidence_report": []}
-    final_verdict, detailed_verdicts = classifier(claim, reranked_docs)
-    _, explanation = summarizer(claim, reranked_docs[:3], final_verdict)
-    final_report = {
+        return {"final_verdict": "NOT ENOUGH INFO", "explanation": "Could not find any relevant documents."}
+    final_verdict, _ = classifier(claim, reranked_docs)
+    top_evidence_for_summary = reranked_docs[:3]
+    _, explanation = summarizer(claim, top_evidence_for_summary, final_verdict)
+    best_evidence_text = reranked_docs[0][1]
+    truncated_evidence = (best_evidence_text[:250] + '...') if len(best_evidence_text) > 250 else best_evidence_text
+
+    clean_report = {
         "final_verdict": final_verdict,
         "explanation": explanation,
-        "evidence_report": detailed_verdicts
+        "top_evidence_snippet": truncated_evidence
     }
-    return final_report
+    
+    return clean_report
 
-
-
+# --- AND UPDATE YOUR FINAL PRINT ---
 if __name__ == "__main__":
     user_claim = "The Eiffel Tower is made of cheese."
-    
     report = run_text_pipeline(user_claim)
     
     print("\n--- 🚀 FINAL TEXT ANALYSIS REPORT 🚀 ---")
-    # Use json.dumps for a clean, readable print of the nested dictionary
-    print(json.dumps(report, indent=2))
+    # This print block now works with the smaller, cleaner report
+    print(f"Verdict: {report['final_verdict']}")
+    print(f"Explanation: {report['explanation']}")
+    print(f"Based on evidence: \"{report['top_evidence_snippet']}\"")
