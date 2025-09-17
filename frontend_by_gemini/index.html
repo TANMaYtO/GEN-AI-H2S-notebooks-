@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Forensics Toolkit</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <header>
+        <h1>🛡️ Digital Forensics Toolkit</h1>
+        <p>An evidence-based platform to analyze text and images for misinformation.</p>
+    </header>
+
+    <main class="container">
+        <form id="analysis-form">
+            <div class="input-group">
+                <label for="text-input">Analyze Text or URL</label>
+                <textarea id="text-input" name="text_input" rows="4" placeholder="Paste a news article, claim, or URL here..."></textarea>
+            </div>
+            
+            <div class="separator">OR</div>
+
+            <div class="input-group">
+                <label for="image-input">Analyze an Image</label>
+                <input type="file" id="image-input" name="image_file" accept="image/png, image/jpeg">
+            </div>
+
+            <button type="submit" class="btn-analyze" id="analyze-btn">Analyze</button>
+        </form>
+
+        <div id="results-container">
+            <div class="placeholder">
+                <p>Your analysis results will appear here.</p>
+            </div>
+        </div>
+
+        <div id="loader" class="loader-hidden">
+            <div class="spinner"></div>
+            <p>Analyzing... This may take a moment.</p>
+        </div>
+
+    </main>
+
+    <footer>
+        <p>A GenAI Hackathon Project</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
