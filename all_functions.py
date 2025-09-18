@@ -43,7 +43,6 @@ class Classifier:
         self.model_name = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli"
         self.label_names = ["entailment", "neutral", "contradiction"]
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(self.device)
         try:
             self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name)
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
@@ -98,7 +97,6 @@ class summarizer:
     def __init__(self):
         self.model_name = "google/flan-t5-large"
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(self.device)
         try:
             self.model =  T5ForConditionalGeneration.from_pretrained(self.model_name, device_map="auto")
             self.tokenizer = T5Tokenizer.from_pretrained("google/flan-t5-large")
@@ -148,7 +146,6 @@ class img_manipulation:
                     manipulation_proba = i['score']
                     break
             manipulation_proba = manipulation_proba*100
-            print(f'chance of manipulation: {manipulation_proba:.2f}')
             return manipulation_proba
         except Exception as e:
             print(f'an error occured:{e}')
@@ -169,7 +166,6 @@ class img_manipulation:
                 max_diff = 1
             enhancer = ImageEnhance.Brightness(ela_image)
             ela_image = enhancer.enhance(scale / max_diff)
-            print(f"ELA image generated for {img_pth}")
             ela_image.show()
             return scaled_score, ela_image
         except Exception as e:
