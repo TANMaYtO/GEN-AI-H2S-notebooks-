@@ -8,7 +8,7 @@ import torch
 from google.cloud import vision
 import os
 import io
-from all_functions import img_manipulation, OCR
+from pmo_func import img_manipulation, OCR
 from TEXT_PIPELINE import run_text_pipeline
 import json
 
