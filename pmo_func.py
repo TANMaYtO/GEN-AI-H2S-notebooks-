@@ -10,19 +10,6 @@ import os
 import io
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from transformers import T5Tokenizer, T5ForConditionalGeneration
-from dotenv import load_dotenv
-import requests
-from dotenv import load_dotenv
-import os
-import requests
-import requests
-from bs4 import BeautifulSoup
-import time
-from typing import Dict, List, Any, Optional
-import pandas as pd
-import trafilatura as tra
-import torch
-from transformers import AutoModel,AutoTokenizer,AutoModelForCausalLM
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -40,7 +27,7 @@ class retriver:
         claim_embedding = self.retrivermodel.encode([claim])
         distances, indices = index.search(claim_embedding, top_k)
         retrieved_docs = [evidence_corpus[i] for i in indices[0]]
-        return retrieved_docs
+        return retrieved_docs,indices
     
 class reranker:
     def __init__(self):
@@ -131,7 +118,7 @@ class Classifier:
             top_verdict_label = top_verdict_info["verdict"]
             top_verdict_scores = top_verdict_info["scores"]
             
-            if top_verdict_label == "entailment" and top_verdict_scores["entailment"] > 0.9:
+            if top_verdict_label == "entailment" and top_verdict_scores["entailment"] > 0.85:
                 result = "TRUE"
             elif top_verdict_label == "contradiction" and top_verdict_scores["contradiction"] > 0.8:
                 result = "FALSE"
@@ -198,7 +185,6 @@ class summarizer:
         1. Confirm or revise the classifier verdict ({verdict}) using ONLY the evidence above.
         2. Explain briefly in 2–3 sentences, citing the evidence (no hallucinations).
         3. Keep everything strictly related to the claim.
-        4. Do not generate out of evidence bullshit
         """
 
     
@@ -221,172 +207,6 @@ class summarizer:
     
     def __call__(self, claim, top_evidence, verdict, max_input_len=1024, max_output_len=150):
         return self.forward(claim, top_evidence, verdict, max_input_len, max_output_len)
-    
-class FactChecker:
-    def __init__(self):
-        self.factcheck_api = "https://factchecktools.googleapis.com/v1alpha1/claims:search"
-        self.google_search = "https://www.google.com/search"
-        self.reranker = None
-        self.classifier = None
-        self.summarizer = None
-
-    def check_google_factcheck(self, claim: str , pages:int=5):
-    
-        load_dotenv()
-        api_key = os.getenv("GOOGLE_FACT_CHECK_API")
-        
-        if not api_key:
-            print("Google FactCheck API key not found")
-            return None
-        
-        params = {
-            'key': api_key,
-            'query': claim,
-            'languageCode': 'en-US',
-            'pageSize': pages
-        }
-        
-        try:
-            response = requests.get(self.factcheck_api, params=params)
-            response.raise_for_status()
-            data = response.json()
-            
-            if 'claims' in data and data['claims']:
-                # Return the most relevant fact-check
-                claim_data = data['claims'][0]
-                review = claim_data.get('claimReview', [{}])[0]
-                
-                return {
-                    'claim': claim_data.get('text', ''),
-                    'verdict': review.get('textualRating', 'Unknown'),
-                    'summary': f"Rated {review.get('textualRating', 'Unknown')} by {review.get('publisher', {}).get('name', 'Unknown')}",
-                    'source': review.get('url', ''),
-                    'confidence': 'high',  # From official fact-checkers
-                    'method': 'google_factcheck',
-                    'URLs': [review.get('url', '')]
-                }
-            
-        except Exception as e:
-            print(f"FactCheck API error: {e}")
-        
-        return None
-    
-    def search_and_analyze_claim(self, claim: str):
-        """
-        Fallback method: Search web and analyze results with your models
-        """
-        print("No FactCheck result found, performing web analysis...")
-        
-        self.classifier = Classifier()
-        self.summarizer = summarizer()
-        self.reranker = reranker()
-
-
-        top_evidences,urls,article_list = self.google_news_search(claim)
-        
-        if not top_evidences:
-            return {
-                'claim': claim,
-                'verdict': 'Unverifiable',
-                'summary': 'No relevant sources found to verify this claim',
-                # 'confidence': 'low',
-                'method': 'web_search',
-                'soruce':"nothing",
-                'URLs':""
-            }
-        
-        # 2. Rerank articles by relevance
-        reranked_articles = self.reranker.rerank_evidendce(claim,top_evidences)
-        
-        # 3. Classify articles stance
-        verdict,_ = self.classifier(claim,reranked_articles)
-        
-        # 4. Generate summary verdict
-        verdict,summary = self.summarizer(claim,top_evidences,verdict)
-        
-        return {
-            'claim': claim,
-            'verdict': verdict,
-            'summary': summary,
-            'source': [arc.get('source','') for arc in article_list],
-            'method': 'web_analysis',
-            'URLs':urls
-        },article_list
-    
-    def google_news_search(self,query:str,num_pages:int = 1):
-        print("Searching the Web")
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                        "AppleWebKit/537.36 (KHTML, like Gecko) "
-                        "Chrome/115.0.0.0 Safari/537.36"
-                        }
-        
-        articles_gg= []
-        for pages in range(num_pages):
-            params = {
-                "q":query,
-                "tbm":"nws",
-                'start':int(pages) * 10 
-                }
-
-            try:
-                res = requests.get(self.google_search,params=params,headers=headers,timeout=15)
-                soup = BeautifulSoup(res.text,'html.parser')
-
-                article_list=soup.select("div.SoaBEf a")
-                if not article_list:
-                    print("None Articles found")
-                for article in article_list:
-                    h1 = article.find('div',class_= "n0jPhd ynAwRc MBeuO nDgy9d").text
-                    h2 = article.find('div',class_ = "GI74Re nDgy9d").text
-                    title = h1 + h2
-
-                    a_url = article['href']
-                    time = article.find('div',class_="OSrXXb rbYSKb LfVVr").text
-                    source  = article.find('div',class_ = "MgUUmf NUnG9d").text
-
-                    try:
-                        down = tra.fetch_url(a_url)
-                        content = tra.extract(down) if down else "none extracted"
-                        content = content if content else "No content extracted"
-                    except Exception as e:
-                        content = f"Error: {e}"
-
-                    articles_gg.append({
-                        "title":title,
-                        'url':a_url,
-                        'text':content,
-                        'pblished_date':time,
-                        'source':source
-                    })
-                
-            except requests.exceptions.RequestException as e:
-                print(f"Error Fething Google search | {e}")
-
-            except Exception as e:
-                print(f"Unforseen Error | {e}")
-
-        top_evidences = [dict.get('text') for dict in articles_gg]
-        urls = [dict.get('url') for dict in articles_gg]
-        print("Web search Successfull")
-        return top_evidences,urls,articles_gg
-    
-    def check_claim(self, claim: str):
-        """
-        Main function to check a claim using the complete pipeline.
-        Always returns a tuple of (result_dict, article_list).
-        """
-        print(f"\n--- Checking claim: '{claim}' ---")
-        
-        factcheck_result = self.check_google_factcheck(claim)
-        if factcheck_result:
-            print("Found result in FactCheck database.")
-            # FIXED: Return a tuple with None for the articles to keep the format consistent
-            return factcheck_result, None
-        
-        print("No FactCheck result, falling back to web analysis...")
-        # This already returns a tuple, so it's fine
-        return self.search_and_analyze_claim(claim)
 
     
 class img_manipulation:

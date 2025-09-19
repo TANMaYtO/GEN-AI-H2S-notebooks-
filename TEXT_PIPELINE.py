@@ -9,7 +9,7 @@ import torch
 from google.cloud import vision
 import os
 import io
-from all_functions import reranker, retriver, Classifier, summarizer
+from pmo_func import reranker, retriver, Classifier, summarizer,FactChecker
 import json
 
 retriver = retriver()
@@ -34,21 +34,33 @@ else:
     faiss_index = retriver.build_faiss_idx(evidence_corpus)
 
 def run_text_pipeline(claim: str):
-    retrieved_docs = retriver.retrieve_evidence(claim, faiss_index, evidence_corpus)
+    retrieved_docs,indices = retriver.retrieve_evidence(claim, faiss_index, evidence_corpus)
     reranked_docs = reranker.rerank_evidendce(claim, retrieved_docs)
     
     if not reranked_docs:
-        return {"final_verdict": "NOT ENOUGH INFO", "explanation": "Could not find any relevant documents."}
+        try:
+            google = FactChecker()
+            result,arc = google.check_claim(claim)
+            return {
+                "final verdict":result['verdict'],
+                "explanation":result['summary'],
+                "source":{a['source']:a['url'] for a in arc}
+            }
+        except Exception as e:
+            print(f"Google Could not help and i dont think even god can | {e}")
+
     final_verdict, _ = classifier(claim, reranked_docs)
     top_evidence_for_summary = reranked_docs[:3]
     _, explanation = summarizer(claim, top_evidence_for_summary, final_verdict)
     best_evidence_text = reranked_docs[0][1]
-    truncated_evidence = (best_evidence_text[:250] + '...') if len(best_evidence_text) > 250 else best_evidence_text
-
+    # truncated_evidence = (best_evidence_text[:250] + '...') if len(best_evidence_text) > 250 else best_evidence_text
+    df_rel = df.iloc[indices]
+    sources_dict = df_rel.set_index("source")["url"].to_dict()
+    
     clean_report = {
         "final_verdict": final_verdict,
         "explanation": explanation,
-        "top_evidence_snippet": truncated_evidence
+        "source": sources_dict
     }
     return clean_report
 
