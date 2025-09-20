@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Forensics Toolkit</title>
+    <!-- FIXED: Correct path to CSS file -->
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+<body>
+    <div class="background-gradient"></div>
+
+    <header class="animate-on-scroll fade-in">
+        <h1>🛡️ Digital Forensics Toolkit</h1>
+        <p>An evidence-based platform to analyze text and images for misinformation.</p>
+    </header>
+
+    <main class="container animate-on-scroll slide-up">
+        <form id="analysis-form">
+            <div class="input-group">
+                <label for="text-input">Analyze Text or URL</label>
+                <textarea id="text-input" name="text_input" rows="4" placeholder="Paste a news article, claim, or URL here..."></textarea>
+            </div>
+            
+            <div class="separator"><span>OR</span></div>
+
+            <div class="input-group">
+                <label for="image-input" class="file-label">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <span id="file-label-text">Click to Upload an Image</span>
+                </label>
+                <input type="file" id="image-input" name="image_file" accept="image/png, image/jpeg">
+            </div>
+
+            <button type="submit" class="btn-analyze" id="analyze-btn">
+                <span class="btn-text">Analyze</span>
+                <i class="fas fa-arrow-right"></i>
+            </button>
+        </form>
+
+        <div id="results-container"></div>
+
+        <div id="loader" class="loader-hidden">
+            <div class="scanner-line"></div>
+            <p>Analyzing... This may take a moment.</p>
+        </div>
+    </main>
+
+    <footer class="animate-on-scroll fade-in">
+        <p>A GenAI Hackathon Project</p>
+    </footer>
+
+    <!-- FIXED: Correct path to JS file -->
+    <script src="/static/script.js"></script>
+</body>
+</html>

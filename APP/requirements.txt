@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+python-multipart
+pandas
+numpy
+faiss-cpu
+sentence-transformers
+transformers
+torch
+Pillow
+google-cloud-vision
+python-dotenv
+beautifulsoup4
+trafilatura
+accelerate
+sentencepiece

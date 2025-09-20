@@ -1,0 +1,5 @@
+data.scv
+evidence_index.faiss
+GOOGLE_FACT_CHECK_API.json
+GOOGLE_VISION_API.json
+venv
