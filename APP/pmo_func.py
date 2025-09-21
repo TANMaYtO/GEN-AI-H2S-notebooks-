@@ -124,26 +124,105 @@ class FactChecker:
         self.google_search = "https://www.google.com/search"
         load_dotenv()
         self.factcheck_api_key = os.getenv("GOOGLE_FACT_CHECK_API_KEY")
+        # Lazy load heavy models
+        self.reranker = None
+        self.classifier = None
+        self.summarizer = None
 
     def check_google_factcheck(self, claim: str, pages: int = 5):
-        if not self.factcheck_api_key: return None
+        if not self.factcheck_api_key:
+            print("Google FactCheck API key not found in .env file.")
+            return None
+        
         params = {'key': self.factcheck_api_key, 'query': claim, 'languageCode': 'en-US', 'pageSize': pages}
         try:
-            response = requests.get(self.factcheck_api, params=params)
+            response = requests.get(self.factcheck_api, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
             if 'claims' in data and data['claims']:
-                review = data['claims'][0].get('claimReview', [{}])[0]
-                return {"verdict": review.get('textualRating', 'Unknown'), "summary": f"Rated by {review.get('publisher', {}).get('name', 'Unknown')}"}
+                claim_data = data['claims'][0]
+                review = claim_data.get('claimReview', [{}])[0]
+                return {
+                    'claim': claim_data.get('text', claim),
+                    'verdict': review.get('textualRating', 'Unknown'),
+                    'summary': f"Rated by {review.get('publisher', {}).get('name', 'Unknown')}",
+                    'source': [review.get('publisher', {}).get('name', 'Unknown')],
+                    'method': 'google_factcheck',
+                    'URLs': [review.get('url', '')]
+                }
         except Exception as e:
             print(f"FactCheck API error: {e}")
         return None
 
-    # Note: Web scraping is fragile. The rest of your web search logic would go here.
-    # For this refactor, we'll assume the RAG pipeline is the primary method.
+    def google_news_search(self, query: str, num_pages: int = 1):
+        print("Searching the Web...")
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
+        articles_gg = []
+        for page in range(num_pages):
+            params = {"q": query, "tbm": "nws", 'start': page * 10}
+            try:
+                res = requests.get(self.google_search, params=params, headers=headers, timeout=15)
+                soup = BeautifulSoup(res.text, 'html.parser')
+                # Note: This selector is fragile and may break if Google changes its HTML.
+                for article_link in soup.select("a.WlydOe"):
+                    title_div = article_link.find('div', class_="n0jPhd")
+                    source_div = article_link.find('div', class_="MgUUmf")
+                    
+                    if not (title_div and source_div): continue
+
+                    title = title_div.text
+                    a_url = article_link['href']
+                    source = source_div.text
+                    
+                    content = tra.extract(tra.fetch_url(a_url)) if a_url else "No content extracted"
+                    articles_gg.append({'title': title, 'url': a_url, 'text': content or "", 'source': source})
+            except Exception as e:
+                print(f"Error during web search: {e}")
+
+        top_evidences = [d.get('text', '') for d in articles_gg]
+        urls = [d.get('url', '') for d in articles_gg]
+        return top_evidences, urls, articles_gg
+
+    def search_and_analyze_claim(self, claim: str):
+        print("Performing web analysis...")
+        
+        if self.reranker is None:
+            print("Loading AI models for web analysis...")
+            self.reranker = reranker()
+            self.classifier = Classifier()
+            self.summarizer = summarizer()
+        
+        top_evidences, urls, article_list = self.google_news_search(claim)
+        
+        if not top_evidences:
+            return {'claim': claim, 'verdict': 'Unverifiable', 'summary': 'No relevant sources found.', 'source': [], 'method': 'web_search', 'URLs': []}
+        
+        reranked_articles = self.reranker.rerank_evidendce(claim, top_evidences)
+        if not reranked_articles:
+            return {'claim': claim, 'verdict': 'Unverifiable', 'summary': 'No relevant sources found after reranking.', 'source': [], 'method': 'web_search', 'URLs': []}
+
+        verdict, _ = self.classifier(claim, reranked_articles)
+        _, summary = self.summarizer(claim, reranked_articles[:3], verdict)
+        
+        return {
+            'claim': claim,
+            'verdict': verdict,
+            'summary': summary,
+            'source': [arc.get('source', '') for arc in article_list],
+            'method': 'web_analysis',
+            'URLs': urls
+        }
+
     def check_claim(self, claim: str):
-        print(f"\n--- Checking claim via Google Fact Check API: '{claim}' ---")
-        return self.check_google_factcheck(claim)
+        """Main function to check a claim using the fallback pipeline."""
+        print(f"\n--- Checking claim: '{claim}' ---")
+        factcheck_result = self.check_google_factcheck(claim)
+        if factcheck_result:
+            print("Found result in FactCheck database.")
+            return factcheck_result
+        
+        print("No FactCheck result, falling back to live web analysis...")
+        return self.search_and_analyze_claim(claim)
 
 class img_manipulation:
     def __init__(self):
